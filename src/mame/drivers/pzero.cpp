@@ -9,6 +9,12 @@ A simple 65816 computer.
 ****/
 #include "emu.h"
 #include "cpu/g65816/g65816.h"
+#include "machine/6850acia.h"
+#include "machine/keyboard.h"
+#include "bus/rs232/rs232.h"
+
+#define ACIA6850_TAG "console"
+#define KEYBOARD_TAG "keyboard"
 
 class pzero_state: public driver_device
 {
@@ -18,6 +24,8 @@ public:
 
     : driver_device(mconfig, type, tag)
     , m_maincpu(*this, "maincpu")
+    //, m_console(*this, "console")
+    //, m_rs232(*this, "rs232")
 
   {}
 
@@ -32,6 +40,8 @@ void pzero_state::pzero_mem(address_map &map)
 {
   map.unmap_value_high();
   map(0x0000, 0xdfff).ram();
+  map(0xe010, 0xe011).rw(ACIA6850_TAG,
+	FUNC(acia6850_device::read), FUNC(acia6850_device::write));
   map(0xf000, 0xffff).rom();
 }
 
@@ -46,6 +56,14 @@ void pzero_state::machine_reset()
 MACHINE_CONFIG_START(pzero_state::pzero)
   MCFG_DEVICE_ADD("maincpu", G65816, XTAL(4'000'000))
   MCFG_DEVICE_PROGRAM_MAP(pzero_mem)
+  acia6850_device &console(ACIA6850(config, "console", 0));
+  console.txd_handler().set("eia0", FUNC(rs232_port_device::write_txd));
+  console.rts_handler().set("eia0", FUNC(rs232_port_device::write_rts));
+
+  rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "terminal"));
+  eia0.rxd_handler().set("console", FUNC(acia6850_device::write_rxd));
+  eia0.cts_handler().set("console", FUNC(acia6850_device::write_cts));
+
 MACHINE_CONFIG_END
 
 ROM_START( pzero )
