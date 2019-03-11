@@ -62,21 +62,21 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   port0.set_xtal(XTAL(1'843'200));
   port1.set_xtal(XTAL(1'843'200));
 
-  port0.dtr_handler().set("eia0", FUNC(rs232_port_device::write_dtr));
   port0.txd_handler().set("eia0", FUNC(rs232_port_device::write_txd));
+  port0.rts_handler().set("eia0", FUNC(rs232_port_device::write_rts));
 
-  rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "loopback"));
+  rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "terminal"));
   eia0.rxd_handler().set("port0", FUNC(mos6551_device::write_rxd));
-  eia0.dcd_handler().set("port0", FUNC(mos6551_device::write_dcd));
-  eia0.dsr_handler().set("port0", FUNC(mos6551_device::write_dsr));
   eia0.cts_handler().set("port0", FUNC(mos6551_device::write_cts));
+  //eia0.dcd_handler().set("port0", FUNC(mos6551_device::write_dcd));
+  //eia0.dsr_handler().set("port0", FUNC(mos6551_device::write_dsr));
 
 
 MACHINE_CONFIG_END
 
 ROM_START( pzero )
   ROM_REGION(0x10000, "maincpu", ROMREGION_ERASEFF)
-  ROM_LOAD("rom000.bin", 0xf000, 0x1000, CRC(0ecb1b7a) SHA1(9057d32bba9be7f19f140818f29c17e6e24b83cd))
+  ROM_LOAD("rom001.bin", 0xf000, 0x1000, CRC(92609fd5) SHA1(9057d32bba9be7f19f140818f29c17e6e24b83cd))
 
 ROM_END
 
