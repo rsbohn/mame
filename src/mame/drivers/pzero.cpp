@@ -5,6 +5,7 @@
 A simple 65816 computer.
 
 2019-03-11 Add a 6522 VIA chip.
+	Add 32K nvram (./nvram/pzero/nvram)
 2019-03-03 Start here.
 
 ****/
@@ -13,7 +14,7 @@ A simple 65816 computer.
 #include "cpu/m6502/m6502.h"
 #include "machine/mos6551.h"
 #include "machine/6522via.h"
-#include "machine/keyboard.h"
+#include "machine/nvram.h"
 #include "bus/rs232/rs232.h"
 
 #define KEYBOARD_TAG "keyboard"
@@ -51,6 +52,8 @@ void pzero_state::pzero_mem(address_map &map)
   map(0xe130, 0xe133).rw("port1",
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
   map(0xf000, 0xffff).rom();
+
+  map(0x10000, 0x17fff).ram().share("nvram");
 }
 
 static INPUT_PORTS_START( pzero )
@@ -71,6 +74,7 @@ WRITE_LINE_MEMBER(pzero_state::via_irq_handler)
 MACHINE_CONFIG_START(pzero_state::pzero)
   MCFG_DEVICE_ADD("maincpu", G65816, XTAL(4'000'000))
   MCFG_DEVICE_PROGRAM_MAP(pzero_mem)
+  NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
   
   VIA6522(config, m_via0, XTAL(4'000'000)/4);
   m_via0->irq_handler().set(FUNC(pzero_state::via_irq_handler));
