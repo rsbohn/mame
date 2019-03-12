@@ -33,7 +33,6 @@ public:
 
   void pzero(machine_config &config);
   void pzero_mem(address_map &map);
-  DECLARE_WRITE_LINE_MEMBER(via_irq_handler);
 
 private:
   virtual void machine_reset() override;
@@ -63,11 +62,8 @@ void pzero_state::machine_reset()
 {
 }
 
-WRITE_LINE_MEMBER(pzero_state::via_irq_handler)
-{
-  //m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE);
-  //m_maincpu->set_input_line(M6502_IRQ_LINE, state);
-}
+//m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE);
+//m_maincpu->set_input_line(M6502_IRQ_LINE, state);
 
 
 /************* CONFIG **************/
@@ -77,8 +73,8 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
   
   VIA6522(config, m_via0, XTAL(4'000'000)/4);
-  m_via0->irq_handler().set(FUNC(pzero_state::via_irq_handler));
-  //m_via0->irq_callback().set_inputline(m_maincpu, G65816_LINE_IRQ);
+  m_via0->irq_handler().set_inputline(m_maincpu, G65816_LINE_IRQ);
+
   mos6551_device &port0(MOS6551(config, "port0", 0));
   mos6551_device &port1(MOS6551(config, "port1", 0));
 
@@ -91,8 +87,6 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "terminal"));
   eia0.rxd_handler().set("port0", FUNC(mos6551_device::write_rxd));
   eia0.cts_handler().set("port0", FUNC(mos6551_device::write_cts));
-  //eia0.dcd_handler().set("port0", FUNC(mos6551_device::write_dcd));
-  //eia0.dsr_handler().set("port0", FUNC(mos6551_device::write_dsr));
 
 
 MACHINE_CONFIG_END
