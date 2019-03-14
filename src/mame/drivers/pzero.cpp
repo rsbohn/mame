@@ -28,6 +28,8 @@ public:
     : driver_device(mconfig, type, tag)
     , m_maincpu(*this, "maincpu")
     , m_via0(*this, "via0")
+    , m_port0(*this, "port0")
+    , m_port1(*this, "port1")
 
   {}
 
@@ -38,6 +40,8 @@ private:
   virtual void machine_reset() override;
   required_device<cpu_device> m_maincpu;
   required_device<via6522_device> m_via0;
+  required_device<mos6551_device> m_port0;
+  required_device<mos6551_device> m_port1;
 };
 
 void pzero_state::pzero_mem(address_map &map)
@@ -75,18 +79,23 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   VIA6522(config, m_via0, XTAL(4'000'000)/4);
   m_via0->irq_handler().set_inputline(m_maincpu, G65816_LINE_IRQ);
 
-  mos6551_device &port0(MOS6551(config, "port0", 0));
-  mos6551_device &port1(MOS6551(config, "port1", 0));
+  mos6551_device &port0(MOS6551(config, m_port0, 0));
+  mos6551_device &port1(MOS6551(config, m_port1, 0));
 
   port0.set_xtal(XTAL(1'843'200));
   port1.set_xtal(XTAL(1'843'200));
 
   port0.txd_handler().set("eia0", FUNC(rs232_port_device::write_txd));
   port0.rts_handler().set("eia0", FUNC(rs232_port_device::write_rts));
+  port1.txd_handler().set("eia1", FUNC(rs232_port_device::write_txd));
+  port1.rts_handler().set("eia1", FUNC(rs232_port_device::write_rts));
 
   rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "terminal"));
-  eia0.rxd_handler().set("port0", FUNC(mos6551_device::write_rxd));
-  eia0.cts_handler().set("port0", FUNC(mos6551_device::write_cts));
+  eia0.rxd_handler().set(m_port0, FUNC(mos6551_device::write_rxd));
+  eia0.cts_handler().set(m_port0, FUNC(mos6551_device::write_cts));
+  rs232_port_device &eia1(RS232_PORT(config, "eia1", default_rs232_devices, "loopback"));
+  eia1.rxd_handler().set(m_port1, FUNC(mos6551_device::write_rxd));
+  eia1.cts_handler().set(m_port1, FUNC(mos6551_device::write_cts));
 
 
 MACHINE_CONFIG_END
