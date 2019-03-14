@@ -3942,6 +3942,7 @@ files {
 	MAME_DIR .. "src/mame/drivers/ptcsol.cpp",
 	MAME_DIR .. "src/mame/drivers/pulsar.cpp",
 	MAME_DIR .. "src/mame/drivers/pv9234.cpp",
+	MAME_DIR .. "src/mame/drivers/pzero.cpp",
 	MAME_DIR .. "src/mame/drivers/qtsbc.cpp",
 	MAME_DIR .. "src/mame/drivers/rd100.cpp",
 	MAME_DIR .. "src/mame/drivers/rvoice.cpp",

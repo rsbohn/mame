@@ -641,6 +641,7 @@ pwrview.cpp
 px4.cpp
 px8.cpp
 pyl601.cpp
+pzero.cpp
 ql.cpp
 qtsbc.cpp
 qvt70.cpp
