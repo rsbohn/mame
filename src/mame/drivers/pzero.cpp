@@ -5,7 +5,7 @@
 A simple 65816 computer.
 
 2019-03-11 Add a 6522 VIA chip.
-	Add 32K nvram (./nvram/pzero/nvram)
+	Add 32K nvram (./nvram/pzero/...)
 2019-03-03 Start here.
 
 ****/
@@ -56,7 +56,7 @@ void pzero_state::pzero_mem(address_map &map)
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
   map(0xf000, 0xffff).rom();
 
-  map(0x10000, 0x17fff).ram().share("nvram");
+  map(0x10000, 0x17fff).ram().share("block01");
 }
 
 static INPUT_PORTS_START( pzero )
@@ -74,7 +74,7 @@ void pzero_state::machine_reset()
 MACHINE_CONFIG_START(pzero_state::pzero)
   MCFG_DEVICE_ADD("maincpu", G65816, XTAL(4'000'000))
   MCFG_DEVICE_PROGRAM_MAP(pzero_mem)
-  NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
+  NVRAM(config, "block01", nvram_device::DEFAULT_ALL_0);
   
   VIA6522(config, m_via0, XTAL(4'000'000)/4);
   m_via0->irq_handler().set_inputline(m_maincpu, G65816_LINE_IRQ);
@@ -102,10 +102,10 @@ MACHINE_CONFIG_END
 
 ROM_START( pzero )
   ROM_REGION(0x10000, "maincpu", ROMREGION_ERASEFF)
-  ROM_LOAD("monitor.rom", 0xf000, 0x1000, CRC(92609fd5) SHA1(9057d32bba9be7f19f140818f29c17e6e24b83cd))
+  ROM_LOAD("monitor.rom", 0xf000, 0x1000, CRC(f570e682) SHA1(3d7474c500dd236a3adc80aad96d16832bda86fe))
 ROM_END
 
 /* Driver */
 
 /*    YEAR  NAME   PARENT  COMPAT  MACHINE  INPUT  CLASS        INIT        COMPANY                FULLNAME  FLAGS */
-COMP( 2019, pzero,  0,      0,      pzero,  pzero,  pzero_state, empty_init, "Bodge Industrial", "Pluton/0",  MACHINE_NO_SOUND_HW)
+COMP( 2019, pzero,  0,      0,      pzero,  pzero,  pzero_state, empty_init, "Bodge Industrial", "Pluton/0",  0)
