@@ -15,6 +15,8 @@ A simple 65816 computer.
 #include "machine/mos6551.h"
 #include "machine/6522via.h"
 #include "machine/nvram.h"
+#include "sound/ay8910.h"
+#include "speaker.h"
 #include "bus/rs232/rs232.h"
 
 #define KEYBOARD_TAG "keyboard"
@@ -54,6 +56,9 @@ void pzero_state::pzero_mem(address_map &map)
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
   map(0xe130, 0xe133).rw("port1",
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
+  map(0xe200, 0xe20f).w("audio0", FUNC(ay8910_device::address_w));
+  map(0xe210, 0xe21f).rw("audio0",
+	FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
   map(0xf000, 0xffff).rom();
 
   map(0x10000, 0x17fff).ram().share("block01");
@@ -97,6 +102,9 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   eia1.rxd_handler().set(m_port1, FUNC(mos6551_device::write_rxd));
   eia1.cts_handler().set(m_port1, FUNC(mos6551_device::write_cts));
 
+  SPEAKER(config, "mono").front_center();
+  ay8910_device &audio0(AY8910(config, "audio0", XTAL(4'000'000)));
+  audio0.add_route(ALL_OUTPUTS, "mono", 0.50);
 
 MACHINE_CONFIG_END
 
