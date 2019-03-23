@@ -12,12 +12,15 @@ A simple 65816 computer.
 #include "emu.h"
 #include "cpu/g65816/g65816.h"
 #include "cpu/m6502/m6502.h"
+#include "video/mc6845.h"
 #include "machine/mos6551.h"
 #include "machine/6522via.h"
 #include "machine/nvram.h"
 #include "sound/ay8910.h"
-#include "speaker.h"
 #include "bus/rs232/rs232.h"
+#include "emupal.h"
+#include "screen.h"
+#include "speaker.h"
 
 #define KEYBOARD_TAG "keyboard"
 
@@ -32,9 +35,13 @@ public:
     , m_via0(*this, "via0")
     , m_port0(*this, "port0")
     , m_port1(*this, "port1")
+    , m_p_videoram(*this, "videoram")
+    , m_p_chargen(*this, "chargen")
+    , m_palette(*this, "palette") // why? idk
 
   {}
 
+  MC6845_UPDATE_ROW(scanline);
   void pzero(machine_config &config);
   void pzero_mem(address_map &map);
 
@@ -44,6 +51,9 @@ private:
   required_device<via6522_device> m_via0;
   required_device<mos6551_device> m_port0;
   required_device<mos6551_device> m_port1;
+  required_shared_ptr<uint8_t> m_p_videoram;
+  required_shared_ptr<u8> m_p_chargen; // was _region_ -- put it in a cart?
+  required_device<palette_device> m_palette;
 };
 
 void pzero_state::pzero_mem(address_map &map)
@@ -56,14 +66,62 @@ void pzero_state::pzero_mem(address_map &map)
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
   map(0xe130, 0xe133).rw("port1",
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
+  map(0xe140, 0xe140).w("video", FUNC(mc6845_device::address_w));
+  map(0xe141, 0xe141).rw("video", 
+	FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
   map(0xe200, 0xe20f).w("audio0", FUNC(ay8910_device::address_w));
   map(0xe210, 0xe21f).rw("audio0",
 	FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
   map(0xf000, 0xffff).rom();
 
   map(0x10000, 0x17fff).ram().share("block01");
+  map(0x18000, 0x18fff).ram().share("videoram"); // 4KB gives 4x1KB buffers
+  map(0x19000, 0x19fff).ram().share("chargen"); // 4KB
+  
 }
 
+static const gfx_layout pzero_charla =
+{
+  8,8,256,1,
+  {0},
+  {0,1,2,3,4,5,6,7},
+  {0*1,1*8,2*8,3*8,4*8,5*8,6*8,7*8},
+  8*16
+};
+
+static GFXDECODE_START(gfx_pzero)
+  GFXDECODE_ENTRY("chargen", 0x0000, pzero_charla, 0, 1)
+GFXDECODE_END
+
+MC6845_UPDATE_ROW( pzero_state::scanline )
+{
+        const rgb_t *palette = m_palette->palette()->entry_list_raw();
+        uint8_t chr,gfx,inv;
+        uint16_t mem,x;
+        uint32_t *p = &bitmap.pix32(y);
+
+        for (x = 0; x < x_count; x++)
+        {
+                inv = (x == cursor_x) ? 0xff : 0;
+                mem = (ma + x) & 0x7ff;
+                chr = m_p_videoram[mem];
+
+                /* get pattern of pixels for that character scanline */
+                gfx = m_p_chargen[(chr<<4) | (ra & 0x0f)] ^ inv;
+
+                /* Display a scanline of a character */
+                *p++ = palette[BIT(gfx, 7)];
+                *p++ = palette[BIT(gfx, 6)];
+                *p++ = palette[BIT(gfx, 5)];
+                *p++ = palette[BIT(gfx, 4)];
+                *p++ = palette[BIT(gfx, 3)];
+                *p++ = palette[BIT(gfx, 2)];
+                *p++ = palette[BIT(gfx, 1)];
+                *p++ = palette[BIT(gfx, 0)];
+        }
+}
+
+//////////////////
 static INPUT_PORTS_START( pzero )
 INPUT_PORTS_END
 
@@ -71,15 +129,30 @@ void pzero_state::machine_reset()
 {
 }
 
-//m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE);
-//m_maincpu->set_input_line(M6502_IRQ_LINE, state);
-
 
 /************* CONFIG **************/
 MACHINE_CONFIG_START(pzero_state::pzero)
   MCFG_DEVICE_ADD("maincpu", G65816, XTAL(4'000'000))
   MCFG_DEVICE_PROGRAM_MAP(pzero_mem)
   NVRAM(config, "block01", nvram_device::DEFAULT_ALL_0);
+
+  /** no semicolon after these macros **/
+  MCFG_SCREEN_ADD("screen", RASTER)
+  MCFG_SCREEN_REFRESH_RATE(60)
+  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))  // wha?
+  MCFG_SCREEN_SIZE(640,200)
+  MCFG_SCREEN_VISIBLE_AREA(0,639,0,199)
+  MCFG_SCREEN_UPDATE_DEVICE("video", mc6845_device, screen_update)
+
+  GFXDECODE(config, "gfxdecode", m_palette, gfx_pzero);
+  PALETTE(config, "palette", palette_device::MONOCHROME);
+
+  mc6845_device &video(MC6845(config, "video", XTAL(16'000'000)/8));
+  video.set_screen("screen");
+  video.set_show_border_area(false);
+  video.set_char_width(8);
+  video.set_update_row_callback(FUNC(pzero_state::scanline), this);
+
   
   VIA6522(config, m_via0, XTAL(4'000'000)/4);
   m_via0->irq_handler().set_inputline(m_maincpu, G65816_LINE_IRQ);
