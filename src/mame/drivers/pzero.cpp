@@ -59,19 +59,21 @@ private:
 void pzero_state::pzero_mem(address_map &map)
 {
   map.unmap_value_high();
-  map(0x0000, 0xdfff).ram();
-  map(0xe100,0xe10f).rw("via0",
+  map(0x0000, 0x07ff).ram();
+  map(0x0800,0x080f).rw("via0",
 	FUNC(via6522_device::read), FUNC(via6522_device::write));
-  map(0xe120, 0xe123).rw("port0",
+  map(0x0810, 0x081f).rw("port0",
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
-  map(0xe130, 0xe133).rw("port1",
+  map(0x0820, 0x082f).rw("port1",
 	FUNC(mos6551_device::read), FUNC(mos6551_device::write));
-  map(0xe140, 0xe140).w("video", FUNC(mc6845_device::address_w));
-  map(0xe141, 0xe141).rw("video", 
+  map(0x0840, 0x0840).w("video", FUNC(mc6845_device::address_w));
+  map(0x0841, 0x0841).rw("video", 
 	FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
-  map(0xe200, 0xe20f).w("audio0", FUNC(ay8910_device::address_w));
-  map(0xe210, 0xe21f).rw("audio0",
+  map(0x0850, 0x0850).w("audio0", FUNC(ay8910_device::address_w));
+  map(0x0851, 0x0851).rw("audio0",
 	FUNC(ay8910_device::data_r), FUNC(ay8910_device::data_w));
+  map(0x1000,0x7fff).ram();
+  map(0x8000,0xefff).ram();  // RAM for now...
   map(0xf000, 0xffff).rom();
 
   map(0x10000, 0x17fff).ram().share("block01");
@@ -80,6 +82,7 @@ void pzero_state::pzero_mem(address_map &map)
   
 }
 
+/*
 static const gfx_layout pzero_charla =
 {
   8,8,256,1,
@@ -88,10 +91,7 @@ static const gfx_layout pzero_charla =
   {0*1,1*8,2*8,3*8,4*8,5*8,6*8,7*8},
   8*16
 };
-
-static GFXDECODE_START(gfx_pzero)
-  GFXDECODE_ENTRY("chargen", 0x0000, pzero_charla, 0, 1)
-GFXDECODE_END
+*/
 
 MC6845_UPDATE_ROW( pzero_state::scanline )
 {
@@ -144,7 +144,6 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   MCFG_SCREEN_VISIBLE_AREA(0,639,0,199)
   MCFG_SCREEN_UPDATE_DEVICE("video", mc6845_device, screen_update)
 
-  GFXDECODE(config, "gfxdecode", m_palette, gfx_pzero);
   PALETTE(config, "palette", palette_device::MONOCHROME);
 
   mc6845_device &video(MC6845(config, "video", XTAL(16'000'000)/8));
