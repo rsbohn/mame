@@ -15,14 +15,13 @@ A simple 65816 computer.
 #include "video/mc6845.h"
 #include "machine/mos6551.h"
 #include "machine/6522via.h"
+#include "machine/keyboard.h"
 #include "machine/nvram.h"
 #include "sound/ay8910.h"
 #include "bus/rs232/rs232.h"
 #include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
-
-#define KEYBOARD_TAG "keyboard"
 
 class pzero_state: public driver_device
 {
@@ -44,6 +43,7 @@ public:
   MC6845_UPDATE_ROW(scanline);
   void pzero(machine_config &config);
   void pzero_mem(address_map &map);
+  void key_in(u8 data);
 
 private:
   virtual void machine_reset() override;
@@ -125,6 +125,23 @@ MC6845_UPDATE_ROW( pzero_state::scanline )
 static INPUT_PORTS_START( pzero )
 INPUT_PORTS_END
 
+void pzero_state::key_in(u8 data)
+{
+  if (data)
+  {
+    m_via0->write_pa0(BIT(data, 0));
+    m_via0->write_pa1(BIT(data, 1));
+    m_via0->write_pa2(BIT(data, 2));
+    m_via0->write_pa3(BIT(data, 3));
+    m_via0->write_pa4(BIT(data, 4));
+    m_via0->write_pa5(BIT(data, 5));
+    m_via0->write_pa6(BIT(data, 6));
+    m_via0->write_pa7(BIT(data, 7));
+    m_via0->write_ca1(1);
+    m_via0->write_ca1(0);
+  }
+}
+
 void pzero_state::machine_reset()
 {
 }
@@ -176,7 +193,11 @@ MACHINE_CONFIG_START(pzero_state::pzero)
 
   SPEAKER(config, "mono").front_center();
   ay8910_device &audio0(AY8910(config, "audio0", XTAL(4'000'000)));
+  audio0.set_flags(AY8910_SINGLE_OUTPUT);
   audio0.add_route(ALL_OUTPUTS, "mono", 0.50);
+
+  generic_keyboard_device &keyboard(GENERIC_KEYBOARD(config, "keyboard", 0));
+  keyboard.set_keyboard_callback(FUNC(pzero_state::key_in));
 
 MACHINE_CONFIG_END
 
