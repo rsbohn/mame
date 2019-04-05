@@ -5,13 +5,16 @@
 A simple 65816 computer.
 
 2019-03-11 Add a 6522 VIA chip.
+
 	Add 32K nvram (./nvram/pzero/...)
+
 2019-03-03 Start here.
 
 ****/
 #include "emu.h"
 #include "cpu/g65816/g65816.h"
 #include "cpu/m6502/m6502.h"
+
 #include "video/mc6845.h"
 #include "machine/mos6551.h"
 #include "machine/6522via.h"
@@ -22,6 +25,7 @@ A simple 65816 computer.
 #include "emupal.h"
 #include "screen.h"
 #include "speaker.h"
+
 
 class pzero_state: public driver_device
 {
@@ -146,7 +150,6 @@ void pzero_state::machine_reset()
 {
 }
 
-
 /************* CONFIG **************/
 MACHINE_CONFIG_START(pzero_state::pzero)
   MCFG_DEVICE_ADD("maincpu", G65816, XTAL(4'000'000))
@@ -168,7 +171,6 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   video.set_show_border_area(false);
   video.set_char_width(8);
   video.set_update_row_callback(FUNC(pzero_state::scanline), this);
-
   
   VIA6522(config, m_via0, XTAL(4'000'000)/4);
   m_via0->irq_handler().set_inputline(m_maincpu, G65816_LINE_IRQ);
