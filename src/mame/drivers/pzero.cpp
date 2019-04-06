@@ -184,10 +184,10 @@ MACHINE_CONFIG_START(pzero_state::pzero)
   port1.txd_handler().set("eia1", FUNC(rs232_port_device::write_txd));
   port1.rts_handler().set("eia1", FUNC(rs232_port_device::write_rts));
 
-  rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "terminal"));
+  rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, nullptr));
   eia0.rxd_handler().set(m_port0, FUNC(mos6551_device::write_rxd));
   eia0.cts_handler().set(m_port0, FUNC(mos6551_device::write_cts));
-  rs232_port_device &eia1(RS232_PORT(config, "eia1", default_rs232_devices, "loopback"));
+  rs232_port_device &eia1(RS232_PORT(config, "eia1", default_rs232_devices, nullptr));
   eia1.rxd_handler().set(m_port1, FUNC(mos6551_device::write_rxd));
   eia1.cts_handler().set(m_port1, FUNC(mos6551_device::write_cts));
 
