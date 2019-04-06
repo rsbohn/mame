@@ -17,13 +17,12 @@ EC-65 (also known as Octopus)
 #include "machine/mos6551.h"
 #include "machine/6850acia.h"
 #include "machine/keyboard.h"
-#include "bus/rs232/rs232.h"
 #include "emupal.h"
 #include "screen.h"
 
 #define PIA6821_TAG "pia6821"
-#define ACIA6850_TAG "console"
-#define ACIA6551_TAG "aux"
+#define ACIA6850_TAG "acia6850"
+#define ACIA6551_TAG "acia6551"
 #define VIA6522_0_TAG "via6522_0"
 #define VIA6522_1_TAG "via6522_1"
 #define MC6845_TAG "mc6845"
@@ -74,12 +73,12 @@ void ec65_state::ec65_mem(address_map &map)
 	map.unmap_value_high();
 	map(0x0000, 0xdfff).ram();
 	map(0xe000, 0xe003).rw(PIA6821_TAG, FUNC(pia6821_device::read), FUNC(pia6821_device::write));
+	map(0xe010, 0xe011).rw(ACIA6850_TAG, FUNC(acia6850_device::read), FUNC(acia6850_device::write));
 	map(0xe100, 0xe10f).rw(m_via_0, FUNC(via6522_device::read), FUNC(via6522_device::write));
 	map(0xe110, 0xe11f).rw(m_via_1, FUNC(via6522_device::read), FUNC(via6522_device::write));
 	map(0xe130, 0xe133).rw(ACIA6551_TAG, FUNC(mos6551_device::read), FUNC(mos6551_device::write));
 	map(0xe140, 0xe140).w(MC6845_TAG, FUNC(mc6845_device::address_w));
 	map(0xe141, 0xe141).rw(MC6845_TAG, FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w));
-	map(0xe150, 0xe153).rw(ACIA6850_TAG, FUNC(acia6850_device::read), FUNC(acia6850_device::write));
 	map(0xe400, 0xe7ff).ram(); // 1KB on-board RAM
 	map(0xe800, 0xefff).ram().share("videoram");
 	map(0xf000, 0xffff).rom();
@@ -198,24 +197,7 @@ void ec65_state::ec65(machine_config &config)
 	/* devices */
 	PIA6821(config, PIA6821_TAG, 0);
 
-	//ACIA6850(config, ACIA6850_TAG, 0);
-	acia6850_device &console(ACIA6850(config, ACIA6850_TAG, 0));
-	console.txd_handler().set("eia0", FUNC(rs232_port_device::write_txd));
-	console.rts_handler().set("eia0", FUNC(rs232_port_device::write_rts));
-
-	clock_device &aclock(CLOCK(config, "aclock", 153600));
-	aclock.signal_handler().set("console", FUNC(acia6850_device::write_txc));
-	aclock.signal_handler().append("console", FUNC(acia6850_device::write_rxc));
-
-	rs232_port_device &eia0(RS232_PORT(config, "eia0", default_rs232_devices, "terminal"));
-	eia0.rxd_handler().set("console", FUNC(acia6850_device::write_rxd));
-	eia0.dcd_handler().set("console", FUNC(acia6850_device::write_dcd));
-	//eia0.dsr_handler().set("console", FUNC(acia6850_device::write_dsr));
-	eia0.cts_handler().set("console", FUNC(acia6850_device::write_cts));
-	//eia0.rxd_handler().set("aux", FUNC(mos6551_device::write_rxd));
-	//eia0.dcd_handler().set("aux", FUNC(mos6551_device::write_dcd));
-	//eia0.dsr_handler().set("aux", FUNC(mos6551_device::write_dsr));
-	//eia0.cts_handler().set("aux", FUNC(mos6551_device::write_cts));
+	ACIA6850(config, ACIA6850_TAG, 0);
 
 	VIA6522(config, m_via_0, XTAL(4'000'000) / 4);
 
@@ -223,9 +205,6 @@ void ec65_state::ec65(machine_config &config)
 
 	mos6551_device &acia(MOS6551(config, ACIA6551_TAG, 0));
 	acia.set_xtal(XTAL(1'843'200));
-	//acia.txd_handler().set("eia0", FUNC(rs232_port_device::write_txd));
-	//acia.rts_handler().set("eia0", FUNC(rs232_port_device::write_rts));
-	//acia.dtr_handler().set("eia0", FUNC(rs232_port_device::write_dtr));
 
 	generic_keyboard_device &keyboard(GENERIC_KEYBOARD(config, KEYBOARD_TAG, 0));
 	keyboard.set_keyboard_callback(FUNC(ec65_state::kbd_put));
