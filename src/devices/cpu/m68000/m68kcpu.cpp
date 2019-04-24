@@ -614,7 +614,7 @@ const uint8_t m68000_base_device::m68ki_ea_idx_cycle_table[64] =
     CPU STATE DESCRIPTION
 ***************************************************************************/
 
-#define MASK_ALL                (CPU_TYPE_000 | CPU_TYPE_008 | CPU_TYPE_010 | CPU_TYPE_EC020 | CPU_TYPE_020 | CPU_TYPE_EC030 | CPU_TYPE_030 | CPU_TYPE_EC040 | CPU_TYPE_040 | CPU_TYPE_FSCPU32 )
+#define MASK_ALL                (CPU_TYPE_000 | CPU_TYPE_008 | CPU_TYPE_010 | CPU_TYPE_EC020 | CPU_TYPE_020 | CPU_TYPE_EC030 | CPU_TYPE_030 | CPU_TYPE_EC040 | CPU_TYPE_040 | CPU_TYPE_FSCPU32 | CPU_TYPE_SCC070 )
 #define MASK_24BIT_SPACE            (CPU_TYPE_000 | CPU_TYPE_008 | CPU_TYPE_010 | CPU_TYPE_EC020)
 #define MASK_32BIT_SPACE            (CPU_TYPE_020 | CPU_TYPE_EC030 | CPU_TYPE_030 | CPU_TYPE_EC040 | CPU_TYPE_040 | CPU_TYPE_FSCPU32 )
 #define MASK_010_OR_LATER           (CPU_TYPE_010 | CPU_TYPE_EC020 | CPU_TYPE_020 | CPU_TYPE_030 | CPU_TYPE_EC030 | CPU_TYPE_040 | CPU_TYPE_EC040 | CPU_TYPE_FSCPU32 )
@@ -687,7 +687,7 @@ void m68000_base_device::m68k_cause_bus_error()
 
 	m_run_mode = RUN_MODE_BERR_AERR_RESET_WSF;
 
-	if (!CPU_TYPE_IS_010_PLUS())
+	if (CPU_TYPE_IS_000())
 	{
 		/* Note: This is implemented for 68000 only! */
 		m68ki_stack_frame_buserr(sr);
@@ -696,6 +696,11 @@ void m68000_base_device::m68k_cause_bus_error()
 	{
 		/* only the 68010 throws this unique type-1000 frame */
 		m68ki_stack_frame_1000(m_ppc, sr, EXCEPTION_BUS_ERROR);
+	}
+	else if (CPU_TYPE_IS_070())
+	{
+		/* only the 68070 throws this unique type-1111 frame */
+		m68ki_stack_frame_1111(m_ppc, sr, EXCEPTION_BUS_ERROR);
 	}
 	else if (m_mmu_tmp_buserror_address == m_ppc)
 	{
@@ -1955,8 +1960,28 @@ void m68000_base_device::init_cpu_m68lc040(void)
 
 void m68000_base_device::init_cpu_scc68070(void)
 {
-	init_cpu_m68010();
+	init_cpu_common();
 	m_cpu_type         = CPU_TYPE_SCC070;
+
+	// TODO: most of this is subtly different
+	init16(*m_program, *m_oprogram);
+	m_sr_mask          = 0xa71f; /* T1 -- S  -- -- I2 I1 I0 -- -- -- X  N  Z  V  C  */
+	m_jump_table       = m68ki_instruction_jump_table[1];
+	m_cyc_instruction  = m68ki_cycles[1];
+	m_cyc_exception    = m68ki_exception_cycle_table[1];
+	m_cyc_bcc_notake_b = -4;
+	m_cyc_bcc_notake_w = 0;
+	m_cyc_dbcc_f_noexp = 0;
+	m_cyc_dbcc_f_exp   = 6;
+	m_cyc_scc_r_true   = 0;
+	m_cyc_movem_w      = 2;
+	m_cyc_movem_l      = 3;
+	m_cyc_shift        = 1;
+	m_cyc_reset        = 130;
+	m_has_pmmu         = 0;
+	m_has_fpu          = 0;
+
+	define_state();
 }
 
 
@@ -2027,7 +2052,7 @@ std::unique_ptr<util::disasm_interface> m68008_device::create_disassembler()
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68008);
 }
 
-std::unique_ptr<util::disasm_interface> m68008plcc_device::create_disassembler()
+std::unique_ptr<util::disasm_interface> m68008fn_device::create_disassembler()
 {
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68008);
 }
@@ -2087,7 +2112,7 @@ std::unique_ptr<util::disasm_interface> m68040_device::create_disassembler()
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68040);
 }
 
-std::unique_ptr<util::disasm_interface> scc68070_device::create_disassembler()
+std::unique_ptr<util::disasm_interface> scc68070_base_device::create_disassembler()
 {
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68000);
 }
@@ -2319,14 +2344,14 @@ void m68000_base_device::clear_all()
 void m68000_base_device::autovectors_map(address_map &map)
 {
 	// Eventually add the sync to E due to vpa
-	// 8-bit handlers are used here to be 68008-compatible
-	map(0x3, 0x3).lr8("avec1", []() -> u8 { return 0x19; });
-	map(0x5, 0x5).lr8("avec2", []() -> u8 { return 0x1a; });
-	map(0x7, 0x7).lr8("avec3", []() -> u8 { return 0x1b; });
-	map(0x9, 0x9).lr8("avec4", []() -> u8 { return 0x1c; });
-	map(0xb, 0xb).lr8("avec5", []() -> u8 { return 0x1d; });
-	map(0xd, 0xd).lr8("avec6", []() -> u8 { return 0x1e; });
-	map(0xf, 0xf).lr8("avec7", []() -> u8 { return 0x1f; });
+	// 8-bit handlers are used here to be compatible with all bus widths
+	map(0x3, 0x3).lr8("avec1", []() -> u8 { return autovector(1); });
+	map(0x5, 0x5).lr8("avec2", []() -> u8 { return autovector(2); });
+	map(0x7, 0x7).lr8("avec3", []() -> u8 { return autovector(3); });
+	map(0x9, 0x9).lr8("avec4", []() -> u8 { return autovector(4); });
+	map(0xb, 0xb).lr8("avec5", []() -> u8 { return autovector(5); });
+	map(0xd, 0xd).lr8("avec6", []() -> u8 { return autovector(6); });
+	map(0xf, 0xf).lr8("avec7", []() -> u8 { return autovector(7); });
 }
 
 void m68000_base_device::default_autovectors_map(address_map &map)
@@ -2404,8 +2429,8 @@ device_memory_interface::space_config_vector m68000_base_device::memory_space_co
 
 
 DEFINE_DEVICE_TYPE(M68000,      m68000_device,      "m68000",       "Motorola MC68000")
-DEFINE_DEVICE_TYPE(M68008,      m68008_device,      "m68008",       "Motorola MC68008")
-DEFINE_DEVICE_TYPE(M68008PLCC,  m68008plcc_device,  "m68008plcc",   "Motorola MC68008PLCC")
+DEFINE_DEVICE_TYPE(M68008,      m68008_device,      "m68008",       "Motorola MC68008") // 48-pin plastic or ceramic DIP
+DEFINE_DEVICE_TYPE(M68008FN,    m68008fn_device,    "m68008fn",     "Motorola MC68008FN") // 52-pin PLCC
 DEFINE_DEVICE_TYPE(M68010,      m68010_device,      "m68010",       "Motorola MC68010")
 DEFINE_DEVICE_TYPE(M68EC020,    m68ec020_device,    "m68ec020",     "Motorola MC68EC020")
 DEFINE_DEVICE_TYPE(M68020,      m68020_device,      "m68020",       "Motorola MC68020")
@@ -2417,7 +2442,6 @@ DEFINE_DEVICE_TYPE(M68030,      m68030_device,      "m68030",       "Motorola MC
 DEFINE_DEVICE_TYPE(M68EC040,    m68ec040_device,    "m68ec040",     "Motorola MC68EC040")
 DEFINE_DEVICE_TYPE(M68LC040,    m68lc040_device,    "m68lc040",     "Motorola MC68LC040")
 DEFINE_DEVICE_TYPE(M68040,      m68040_device,      "m68040",       "Motorola MC68040")
-DEFINE_DEVICE_TYPE(SCC68070,    scc68070_device,    "scc68070",     "Philips SCC68070")
 DEFINE_DEVICE_TYPE(FSCPU32,     fscpu32_device,     "fscpu32",      "Freescale CPU32 Core")
 DEFINE_DEVICE_TYPE(MCF5206E,    mcf5206e_device,    "mcf5206e",     "Freescale MCF5206E")
 
@@ -2460,12 +2484,12 @@ void m68008_device::device_start()
 }
 
 
-m68008plcc_device::m68008plcc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: m68000_base_device(mconfig, tag, owner, clock, M68008PLCC, 8,22)
+m68008fn_device::m68008fn_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: m68000_base_device(mconfig, tag, owner, clock, M68008FN, 8,22)
 {
 }
 
-void m68008plcc_device::device_start()
+void m68008fn_device::device_start()
 {
 	init_cpu_m68008();
 }
@@ -2608,12 +2632,13 @@ void m68lc040_device::device_start()
 }
 
 
-scc68070_device::scc68070_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: m68000_base_device(mconfig, tag, owner, clock, SCC68070, 16,32)
+scc68070_base_device::scc68070_base_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock,
+						const device_type type, address_map_constructor internal_map)
+	: m68000_base_device(mconfig, tag, owner, clock, type, 16,32, internal_map)
 {
 }
 
-void scc68070_device::device_start()
+void scc68070_base_device::device_start()
 {
 	init_cpu_scc68070();
 }

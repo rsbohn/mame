@@ -235,7 +235,7 @@ WRITE16_MEMBER( cgc7900_state::interrupt_mask_w )
 
 void cgc7900_state::cpu_space_map(address_map &map)
 {
-	map(0xfffff2, 0xffffff).lr16("interrupt", [this](offs_t offset) -> u16 { return int_vectors[offset+1]; });
+	map(0xfffff2, 0xffffff).lr16("interrupt", [] (offs_t offset) -> u16 { return int_vectors[offset+1]; });
 }
 
 void cgc7900_state::irq_encoder(int pin, int state)
@@ -469,7 +469,6 @@ void cgc7900_state::cgc7900(machine_config &config)
 	M68000(config, m_maincpu, XTAL(28'480'000)/4);
 	m_maincpu->set_addrmap(AS_PROGRAM, &cgc7900_state::cgc7900_mem);
 	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &cgc7900_state::cpu_space_map);
-
 
 	i8035_device &kbmcu(I8035(config, I8035_TAG, 1000000));
 	kbmcu.set_addrmap(AS_PROGRAM, &cgc7900_state::keyboard_mem);

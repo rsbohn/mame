@@ -270,7 +270,7 @@ void apollo_state::apollo_bus_error()
 
 void apollo_state::cpu_space_map(address_map &map)
 {
-	map(0xfffff2, 0xffffff).r(FUNC(apollo_state::apollo_irq_acknowledge));
+	map(0xfffffff2, 0xffffffff).r(FUNC(apollo_state::apollo_irq_acknowledge));
 }
 
 u16 apollo_state::apollo_irq_acknowledge(offs_t offset)
@@ -282,7 +282,7 @@ u16 apollo_state::apollo_irq_acknowledge(offs_t offset)
 	if (offset+1 == 6)
 		return apollo_pic_get_vector();
 	else
-		return 0x19 + offset;
+		return m68000_base_device::autovector(offset+1);
 }
 
 /***************************************************************************

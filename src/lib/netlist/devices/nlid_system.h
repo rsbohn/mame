@@ -18,8 +18,8 @@
 
 namespace netlist
 {
-	namespace devices
-	{
+namespace devices
+{
 	// -----------------------------------------------------------------------------
 	// netlistparams
 	// -----------------------------------------------------------------------------
@@ -94,9 +94,17 @@ namespace netlist
 
 			connect(m_feedback, m_Q);
 		}
-		NETLIB_UPDATEI();
 		//NETLIB_RESETI();
-		NETLIB_UPDATE_PARAMI();
+
+		NETLIB_UPDATE_PARAMI()
+		{
+			m_inc = netlist_time::from_double(1.0 / (m_freq() * 2.0));
+		}
+
+		NETLIB_UPDATEI()
+		{
+			m_Q.push(!m_feedback(), m_inc);
+		}
 
 	private:
 		logic_input_t m_feedback;
@@ -104,6 +112,42 @@ namespace netlist
 
 		param_double_t m_freq;
 		netlist_time m_inc;
+	};
+
+	// -----------------------------------------------------------------------------
+	// varclock
+	// -----------------------------------------------------------------------------
+
+	NETLIB_OBJECT(varclock)
+	{
+		NETLIB_CONSTRUCTOR(varclock)
+		, m_feedback(*this, "FB")
+		, m_Q(*this, "Q")
+		, m_func(*this,"FUNC", "")
+		, m_compiled(this->name() + ".FUNCC", this, this->state().run_state_manager())
+		, m_funcparam({0.0})
+		{
+			if (m_func() != "")
+				m_compiled.compile(std::vector<pstring>({{"T"}}), m_func());
+			connect(m_feedback, m_Q);
+		}
+		//NETLIB_RESETI();
+		//NETLIB_UPDATE_PARAMI()
+
+		NETLIB_UPDATEI()
+		{
+			m_funcparam[0] = exec().time().as_double();
+			const netlist_time m_inc = netlist_time::from_double(m_compiled.evaluate(m_funcparam));
+			m_Q.push(!m_feedback(), m_inc);
+		}
+
+	private:
+		logic_input_t m_feedback;
+		logic_output_t m_Q;
+
+		param_str_t m_func;
+		plib::pfunction m_compiled;
+		std::vector<double> m_funcparam;
 	};
 
 	// -----------------------------------------------------------------------------
@@ -137,7 +181,7 @@ namespace netlist
 				{
 					// FIXME: use pstonum_ne
 					//pati[i] = plib::pstonum<decltype(pati[i])>(pat[i]);
-					pati[i] = plib::pstonum<std::int64_t>(pat[i]);
+					pati[i] = plib::pstonum<std::int64_t, true>(pat[i]);
 					total += pati[i];
 				}
 				netlist_time ttotal = netlist_time::zero();
@@ -376,7 +420,36 @@ namespace netlist
 		state_var<netlist_sig_t> m_last_state;
 	};
 
-	} //namespace devices
+	// -----------------------------------------------------------------------------
+	// power pins - not a device, but a helper
+	// -----------------------------------------------------------------------------
+
+	class nld_power_pins
+	{
+	public:
+		nld_power_pins(device_t &owner, const char *sVCC = "VCC", const char *sGND = "GND")
+		{
+			if (owner.setup().is_validation())
+			{
+				m_GND = plib::make_unique<analog_input_t>(owner, sGND);
+				m_VCC = plib::make_unique<analog_input_t>(owner, sVCC);
+			}
+			else
+			{
+				owner.create_and_register_subdevice(sPowerDevRes, m_RVG);
+				owner.register_subalias(sVCC, "_RVG.1");
+				owner.register_subalias(sGND, "_RVG.2");
+			}
+		}
+
+		NETLIB_SUBXX(analog, R) m_RVG; // dummy resistor between VCC and GND
+
+	private:
+		plib::unique_ptr<analog_input_t> m_VCC; // only used during validation
+		plib::unique_ptr<analog_input_t> m_GND; // only used during validation
+	};
+
+} //namespace devices
 } // namespace netlist
 
 #endif /* NLD_SYSTEM_H_ */

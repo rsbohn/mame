@@ -52,6 +52,7 @@ namespace devices
 		LIB_ENTRY(log)
 		LIB_ENTRY(logD)
 		LIB_ENTRY(clock)
+		LIB_ENTRY(varclock)
 		LIB_ENTRY(extclock)
 		LIB_ENTRY(mainclock)
 		LIB_ENTRY(gnd)
@@ -66,8 +67,10 @@ namespace devices
 		LIB_ENTRY(2102A_dip)
 		LIB_ENTRY(2716)
 		LIB_ENTRY(2716_dip)
+#if !(USE_TRUTHTABLE_7448)
 		LIB_ENTRY(7448)
 		LIB_ENTRY(7448_dip)
+#endif
 		LIB_ENTRY(7450)
 		LIB_ENTRY(7450_dip)
 		LIB_ENTRY(7473)

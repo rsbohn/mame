@@ -36,8 +36,8 @@
 #include "netlist/nl_base.h"
 #include "netlist/nl_setup.h"
 #include "netlist/solver/nld_solver.h"
-#include "plib/pfunction.h"
 #include "nld_generic_models.h"
+#include "plib/pfunction.h"
 
 #include <cmath>
 
@@ -149,9 +149,18 @@ namespace analog
 
 	protected:
 
-		NETLIB_RESETI();
 		//NETLIB_UPDATEI() { }
-		NETLIB_UPDATE_PARAMI();
+		NETLIB_RESETI()
+		{
+			NETLIB_NAME(twoterm)::reset();
+			set_R(std::max(m_R(), exec().gmin()));
+		}
+
+		NETLIB_UPDATE_PARAMI()
+		{
+			solve_now();
+			set_R(std::max(m_R(), exec().gmin()));
+		}
 
 	private:
 		param_double_t m_R;
@@ -313,7 +322,7 @@ namespace analog
 	 *   |NL? |name  |parameter                        |units|default| example|area  |
 	 *   |:--:|:-----|:--------------------------------|:----|------:|-------:|:----:|
 	 *   | Y  |IS    |saturation current               |A    |1.0e-14| 1.0e-14|   *  |
-	 *   |    |RS    |ohmic resistanc                  |Ohm  |      0|      10|   *  |
+	 *   |    |RS    |ohmic resistance                 |Ohm  |      0|      10|   *  |
 	 *   | Y  |N     |emission coefficient             |-    |      1|       1|      |
 	 *   |    |TT    |transit-time                     |sec  |      0|   0.1ns|      |
 	 *   |    |CJO   |zero-bias junction capacitance   |F    |      0|     2pF|   *  |
@@ -351,17 +360,7 @@ namespace analog
 	NETLIB_OBJECT_DERIVED(D, twoterm)
 	{
 	public:
-		NETLIB_CONSTRUCTOR_DERIVED(D, twoterm)
-		, m_model(*this, "MODEL", "D")
-		, m_D(*this, "m_D")
-		{
-			register_subalias("A", m_P);
-			register_subalias("K", m_N);
-		}
-
-		template <class CLASS>
-		NETLIB_NAME(D)(CLASS &owner, const pstring &name, const pstring &model)
-		: NETLIB_NAME(twoterm)(owner, name)
+		NETLIB_CONSTRUCTOR_DERIVED_EX(D, twoterm, pstring model = "D")
 		, m_model(*this, "MODEL", model)
 		, m_D(*this, "m_D")
 		{
@@ -398,11 +397,12 @@ namespace analog
 		, m_V(*this, "V", 0.0)
 		, m_func(*this,"FUNC", "")
 		, m_compiled(this->name() + ".FUNCC", this, this->state().run_state_manager())
+		, m_funcparam({0.0})
 		{
 			register_subalias("P", m_P);
 			register_subalias("N", m_N);
 			if (m_func() != "")
-				m_compiled.compile_postfix(std::vector<pstring>({{"T"}}), m_func());
+				m_compiled.compile(std::vector<pstring>({{"T"}}), m_func());
 		}
 
 		NETLIB_IS_TIMESTEP(m_func() != "")
@@ -410,8 +410,9 @@ namespace analog
 		NETLIB_TIMESTEPI()
 		{
 			m_t += step;
+			m_funcparam[0] = m_t;
 			this->set_G_V_I(1.0 / m_R(),
-					m_compiled.evaluate(std::vector<double>({m_t})),
+					m_compiled.evaluate(m_funcparam),
 					0.0);
 		}
 
@@ -430,6 +431,7 @@ namespace analog
 		param_double_t m_V;
 		param_str_t m_func;
 		plib::pfunction m_compiled;
+		std::vector<double> m_funcparam;
 	};
 
 	// -----------------------------------------------------------------------------
@@ -444,18 +446,20 @@ namespace analog
 		, m_I(*this, "I", 1.0)
 		, m_func(*this,"FUNC", "")
 		, m_compiled(this->name() + ".FUNCC", this, this->state().run_state_manager())
+		, m_funcparam({0.0})
 		{
 			register_subalias("P", m_P);
 			register_subalias("N", m_N);
 			if (m_func() != "")
-				m_compiled.compile_postfix(std::vector<pstring>({{"T"}}), m_func());
+				m_compiled.compile(std::vector<pstring>({{"T"}}), m_func());
 		}
 
 		NETLIB_IS_TIMESTEP(m_func() != "")
 		NETLIB_TIMESTEPI()
 		{
 			m_t += step;
-			const double I = m_compiled.evaluate(std::vector<double>({m_t}));
+			m_funcparam[0] = m_t;
+			const double I = m_compiled.evaluate(m_funcparam);
 			set_mat(0.0, 0.0, -I,
 					0.0, 0.0,  I);
 		}
@@ -470,11 +474,20 @@ namespace analog
 					0.0, 0.0,  m_I());
 		}
 
+		NETLIB_UPDATE_PARAMI()
+		{
+			solve_now();
+			set_mat(0.0, 0.0, -m_I(),
+					0.0, 0.0,  m_I());
+		}
+
+
 	private:
 		state_var<double> m_t;
 		param_double_t m_I;
 		param_str_t m_func;
 		plib::pfunction m_compiled;
+		std::vector<double> m_funcparam;
 	};
 
 
