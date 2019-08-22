@@ -148,18 +148,19 @@ void pzero_state::machine_reset()
 
 
 /************* CONFIG **************/
-MACHINE_CONFIG_START(pzero_state::pzero)
-  MCFG_DEVICE_ADD("maincpu", G65816, XTAL(4'000'000))
-  MCFG_DEVICE_PROGRAM_MAP(pzero_mem)
+void pzero_state::pzero(machine_config &config)
+{
+  G65816(config, m_maincpu, XTAL(4'000'000));
+  m_maincpu->set_addrmap(AS_PROGRAM, &pzero_state::pzero_mem);
   NVRAM(config, "block01", nvram_device::DEFAULT_ALL_0);
 
-  /** no semicolon after these macros **/
-  MCFG_SCREEN_ADD("screen", RASTER)
-  MCFG_SCREEN_REFRESH_RATE(60)
-  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))  // wha?
-  MCFG_SCREEN_SIZE(640,200)
-  MCFG_SCREEN_VISIBLE_AREA(0,639,0,199)
-  MCFG_SCREEN_UPDATE_DEVICE("video", mc6845_device, screen_update)
+  /* video hardware */
+  screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
+  screen.set_refresh_hz(60);
+  screen.set_vblank_time(ATTOSECONDS_IN_USEC(2500)); /* not accurate */
+  screen.set_size(640, 200);
+  screen.set_visarea_full();
+  screen.set_screen_update("video", FUNC(mc6845_device::screen_update));
 
   PALETTE(config, "palette", palette_device::MONOCHROME);
 
@@ -198,8 +199,7 @@ MACHINE_CONFIG_START(pzero_state::pzero)
 
   generic_keyboard_device &keyboard(GENERIC_KEYBOARD(config, "keyboard", 0));
   keyboard.set_keyboard_callback(FUNC(pzero_state::key_in));
-
-MACHINE_CONFIG_END
+}
 
 ROM_START( pzero )
   ROM_REGION(0x10000, "maincpu", ROMREGION_ERASEFF)
